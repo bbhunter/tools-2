@@ -307,6 +307,10 @@
                             <div class="legend-color malformed"></div>
                             <span>Malformed</span>
                         </div>
+                        <div class="legend-item">
+                            <div class="legend-color hidden-char block-separator"></div>
+                            <span>Chunk terminator</span>
+                        </div>
                     </div>
 
                     <div class="references mt-4">
@@ -349,13 +353,13 @@ Example:
 POST / HTTP/1.1\r\nHost: example.com\r\nTransfer-Encoding: chunked\r\nContent-Length: 11\r\n\r\na\r\n0123456789\r\n0\r\n\r\n
 
 Use escaped characters (\r\n, \n, \r) for line breaks.
-Actual newlines in the textarea will be ignored during parsing.">POST / HTTP/1.1\r\nHost: example.com\r\nTransfer-Encoding: chunked\r\nContent-Length: 11\r\n\r\na\r\n0123456789\r\n0\r\n\r\n</textarea>
+Actual newlines in the textarea will be ignored during parsing."></textarea>
                         </div>
                     </div>
 
                     <div class="row mt-4">
                         <div class="col-12">
-                            <h2 class="h4 text-secondary mb-3">Parser discrepency visualization <span class="text-muted" id="output-title">(CL.TE)</span></h2>
+                            <h2 class="h4 text-secondary mb-3">Parser discrepancy visualization <span class="text-muted" id="output-title">(CL.TE)</span></h2>
                             
                             <div class="alert alert-info" id="detailed-description">
                                 <strong>CL.TE Desync Attack:</strong> This classic HTTP request smuggling technique exploits the difference between how front-end and back-end servers interpret message boundaries. The front-end server uses the Content-Length header to determine request boundaries, while the back-end server prioritizes Transfer-Encoding chunked. This allows attackers to "smuggle" a second request within the body of the first request, potentially bypassing security controls or accessing unauthorized resources.
@@ -366,7 +370,7 @@ Actual newlines in the textarea will be ignored during parsing.">POST / HTTP/1.1
                                     <h3 class="h6 text-primary mb-2" id="left-parser-title">Content-Length Parser</h3>
                                     <div class="output-container" id="left-output">
                                         <div class="text-muted text-center" style="margin-top: 100px;">
-                                            Enter an HTTP request above to see parser comparison...
+                                            Enter a raw HTTP request.
                                         </div>
                                     </div>
                                 </div>
@@ -374,7 +378,7 @@ Actual newlines in the textarea will be ignored during parsing.">POST / HTTP/1.1
                                     <h3 class="h6 text-primary mb-2" id="right-parser-title">Transfer-Encoding Parser</h3>
                                     <div class="output-container" id="right-output">
                                         <div class="text-muted text-center" style="margin-top: 100px;">
-                                            Enter an HTTP request above to see parser comparison...
+                                            Enter a raw HTTP request.
                                         </div>
                                     </div>
                                 </div>
@@ -551,7 +555,7 @@ Actual newlines in the textarea will be ignored during parsing.">POST / HTTP/1.1
             parseAndRender() {
                 if (!this.rawRequest.trim()) {
                     const emptyMessage = `<div class="text-muted text-center" style="margin-top: 100px;">
-                        Enter an HTTP request above to see parser comparison...
+                        Enter a raw HTTP request.
                     </div>`;
                     this.leftOutput.innerHTML = emptyMessage;
                     this.rightOutput.innerHTML = emptyMessage;
@@ -1246,6 +1250,9 @@ Actual newlines in the textarea will be ignored during parsing.">POST / HTTP/1.1
             visualizer.input.addEventListener('input', updateHash);
             document.querySelectorAll('.btn[data-parser]').forEach(btn => {
             btn.addEventListener('click', updateHash);
+            });
+            document.querySelectorAll('.btn[data-sample]').forEach(btn => {
+                btn.addEventListener('click', updateHash);
             });
             visualizer.terminatorSelect.addEventListener('change', updateHash);
         });
