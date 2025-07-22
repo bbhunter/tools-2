@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP Request Parser Visualizer</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            /* font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; */
+            background-color: #f8f9fa;
+            line-height: 1.5;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .sidebar {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .content-area {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .http-textarea {
+            width: 100%;
+            min-height: 300px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            padding: 12px;
+            resize: vertical;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+            background-color: #f8f9fa;
+        }
+
+        .http-textarea:focus {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .output-container {
+            width: 100%;
+            min-height: 300px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            padding: 12px 12px 12px 12px;
+            overflow: auto;
+            white-space: pre;
+            background-color: #f8f9fa;
+            max-height: 500px;
+            line-height: 1.8;
+        }
+
+        .legend {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        /* Highlighting styles - inspired by w4ke.info */
+        .hidden-char {
+            background-color: #e9ecef;
+            color: #6c757d;
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .hidden-char.block-separator {
+            background-color: #343a40;
+            color: #ffffff;
+            border: 1px solid #495057;  
+            font-weight: 700;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .hidden-char.block-separator::before {
+            content: "";
+            display: block;
+            width: 0;
+            height: 0;
+        }
+
+        .request-line {
+            background-color: rgba(13, 110, 253, 0.1);
+            color: #0d6efd;
+            font-weight: 600;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .header-section {
+            background-color: rgba(25, 135, 84, 0.08);
+            border-left: 3px solid #198754;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .body-section {
+            background-color: rgba(255, 193, 7, 0.08);
+            border-left: 3px solid #ffc107;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .chunk-complete {
+            background-color: rgba(139, 69, 19, 0.15);
+            color: #8b4513;
+            border-left: 3px solid #cd853f;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 0 4px 4px 0;
+            font-weight: 500;
+        }
+
+        .chunk-data {
+            border-left: 3px solid #6c757d;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .ignored-section {
+            background-color: rgba(108, 117, 125, 0.1);
+            color: #6c757d;
+            /* text-decoration: line-through; */
+            text-decoration-thickness: 0.2em;
+            padding: 2px 4px;
+            border-radius: 3px;
+            opacity: 0.7;
+        }
+
+        .content-length-data {
+            background-color: rgba(32, 201, 151, 0.08);
+            border-left: 3px solid #20c997;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .malformed {
+            background-color: rgba(220, 53, 69, 0.1);
+            border-left: 3px solid #dc3545;
+            padding: 8px;
+            margin: 4px 0;
+            color: #dc3545;
+            border-radius: 0 4px 4px 0;
+            font-weight: 500;
+        }
+
+        .annotation {
+            color: #6c757d;
+            font-size: 11px;
+            font-style: italic;
+            float: right;
+            margin-left: 10px;
+            background-color: rgba(108, 117, 125, 0.1);
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        .chunk-extension {
+            background-color: rgba(156, 220, 254, 0.15);
+            color: #0d6efd;
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        .newline-controls {
+            background-color: #fff3cd;
+            border: 1px solid #ffecb5;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+
+        .btn-sm {
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+        /* Additional styles for annotation system */
+        .highlight-header {
+            background-color: rgba(13, 202, 240, 0.2);
+            color: #0dcaf0;
+            font-weight: 500;
+        }
+        
+        .spill-over-section {
+            background-color: rgba(220, 53, 69, 0.1);
+            border-left: 3px solid #dc3545;
+            padding: 8px;
+            margin: 4px 0;
+        }
+        
+        .request-body {
+            background-color: rgba(173, 181, 189, 0.2);
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <div class="container-fluid main-container">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="sidebar">
+                    <div class="parser-options mb-4">
+                        <h3 class="h5 text-secondary mb-3">Choose your parser confusion</h3>
+                        <div class="d-grid gap-2" role="group">
+                            <button class="btn btn-outline-primary active w-100" data-parser="CL.TE">CL.TE</button>
+                            <button class="btn btn-outline-primary w-100" data-parser="TE.CL">TE.CL</button>
+                            <button class="btn btn-outline-primary w-100" data-parser="EXT.TERM">EXT.TERM</button>
+                            <button class="btn btn-outline-primary w-100" data-parser="TERM.EXT">TERM.EXT</button>
+                            <button class="btn btn-outline-primary w-100" data-parser="TERM.SPILL">TERM.SPILL</button>
+                            <button class="btn btn-outline-primary w-100" data-parser="SPILL.TERM">SPILL.TERM</button>
+                        </div>
+                    </div>
+
+                    <div class="terminator-selection mb-4">
+                        <h3 class="h6 text-secondary mb-3">Terminator Character</h3>
+                        <select class="form-select form-select-sm" id="terminator-select">
+                            <option value="\r">\r (Carriage Return)</option>
+                            <option value="\n" selected>\n (Line Feed)</option>
+                        </select>
+                        <small class="text-muted">Select which character acts as delimiter in TERM parsers</small>
+                    </div>
+
+                    <div class="sample-requests mt-4">
+                        <h3 class="h6 text-secondary mb-3">Sample Requests</h3>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-secondary btn-sm" data-sample="cl_te">CL.TE</button>
+                            <button class="btn btn-outline-secondary btn-sm" data-sample="te_cl">TE.CL</button>
+                            <button class="btn btn-outline-secondary btn-sm" data-sample="ext_term">EXT.TERM</button>
+                            <button class="btn btn-outline-secondary btn-sm" data-sample="term_ext">TERM.EXT</button>
+                            <button class="btn btn-outline-secondary btn-sm" data-sample="term_spill">TERM.SPILL</button>
+                            <button class="btn btn-outline-secondary btn-sm" data-sample="spill_term">SPILL.TERM</button>
+                        </div>
+                    </div>
+
+                    <div class="legend">
+                        <h3 class="h6 text-secondary mb-3">Legend</h3>
+                        <div class="legend-item">
+                            <div class="legend-color header-section"></div>
+                            <span>Headers</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color body-section"></div>
+                            <span>Body</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color chunk-complete"></div>
+                            <span>Complete Chunk</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color ignored-section"></div>
+                            <span>Ignored/Unused</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color malformed"></div>
+                            <span>Malformed</span>
+                        </div>
+                    </div>
+
+                    <div class="references mt-4">
+                        <h3 class="h6 text-secondary mb-3">References</h3>
+                        <div class="small">
+                            <div class="mb-2">
+                                <a href="https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn" target="_blank" class="text-decoration-none">
+                                    HTTP Desync Attacks: Request Smuggling Reborn<br>
+                                    <small class="text-muted">PortSwigger - Aug 7, 2019</small>
+                                </a>
+                            </div>
+                            <div class="mb-2">
+                                <a href="https://w4ke.info/2025/06/18/funky-chunks.html" target="_blank" class="text-decoration-none">
+                                    Funky chunks: abusing ambiguous chunk line terminators for request smuggling<br>
+                                    <small class="text-muted">w4ke.info - Jun 18, 2025</small>
+                                </a>
+                            </div>
+                            <div class="mb-2">
+                                <a href="https://github.com/defparam/smuggler" target="_blank" class="text-decoration-none">
+                                    smuggler, an HTTP Request Smuggling / Desync testing tool<br>
+                                    <small class="text-muted">@defparam on GitHub</small>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <div class="content-area">
+                    <div class="row">
+                        <div class="col-12">
+                            <h2 class="h4 text-secondary mb-3">Raw request</h2>
+                            
+                            <textarea 
+                                class="http-textarea form-control" 
+                                id="http-input" 
+                                placeholder="Enter your HTTP request here...
+Example:
+POST / HTTP/1.1\r\nHost: example.com\r\nTransfer-Encoding: chunked\r\nContent-Length: 11\r\n\r\na\r\n0123456789\r\n0\r\n\r\n
+
+Use escaped characters (\r\n, \n, \r) for line breaks.
+Actual newlines in the textarea will be ignored during parsing.">POST / HTTP/1.1\r\nHost: example.com\r\nTransfer-Encoding: chunked\r\nContent-Length: 11\r\n\r\na\r\n0123456789\r\n0\r\n\r\n</textarea>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h2 class="h4 text-secondary mb-3">Parser discrepency visualization <span class="text-muted" id="output-title">(CL.TE)</span></h2>
+                            
+                            <div class="alert alert-info" id="detailed-description">
+                                <strong>CL.TE Desync Attack:</strong> This classic HTTP request smuggling technique exploits the difference between how front-end and back-end servers interpret message boundaries. The front-end server uses the Content-Length header to determine request boundaries, while the back-end server prioritizes Transfer-Encoding chunked. This allows attackers to "smuggle" a second request within the body of the first request, potentially bypassing security controls or accessing unauthorized resources.
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h3 class="h6 text-primary mb-2" id="left-parser-title">Content-Length Parser</h3>
+                                    <div class="output-container" id="left-output">
+                                        <div class="text-muted text-center" style="margin-top: 100px;">
+                                            Enter an HTTP request above to see parser comparison...
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h3 class="h6 text-primary mb-2" id="right-parser-title">Transfer-Encoding Parser</h3>
+                                    <div class="output-container" id="right-output">
+                                        <div class="text-muted text-center" style="margin-top: 100px;">
+                                            Enter an HTTP request above to see parser comparison...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="footer"><center><p class="small">Created with &hearts; by <a href="https://bsky.app/profile/honoki.net">@honoki</a></p></center></div>
+    </div>
+
+    <script>
+        // Function to insert newline characters at cursor position
+        function insertNewline(type) {
+            const textarea = document.getElementById('http-input');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            
+            let newlineText;
+            switch(type) {
+                case '\\r\\n':
+                    newlineText = '\\r\\n';
+                    break;
+                case '\\r':
+                    newlineText = '\\r';
+                    break;
+                case '\\n':
+                    newlineText = '\\n';
+                    break;
+                default:
+                    newlineText = '\\n';
+            }
+            
+            textarea.value = text.substring(0, start) + newlineText + text.substring(end);
+            textarea.setSelectionRange(start + newlineText.length, start + newlineText.length);
+            textarea.focus();
+            
+            // Trigger the input event to update the parsing
+            textarea.dispatchEvent(new Event('input'));
+        }
+
+        class HTTPParserVisualizer {
+            constructor() {
+                this.currentComparison = 'CL.TE';
+                this.rawRequest = ''; // Store the unescaped raw request
+                this.selectedTerminator = '\n'; // Default terminator character
+                this.input = document.getElementById('http-input');
+                this.leftOutput = document.getElementById('left-output');
+                this.rightOutput = document.getElementById('right-output');
+                this.outputTitleEl = document.getElementById('output-title');
+                this.leftParserTitleEl = document.getElementById('left-parser-title');
+                this.rightParserTitleEl = document.getElementById('right-parser-title');
+                this.terminatorSelect = document.getElementById('terminator-select');
+                
+                this.initializeEventListeners();
+                this.setupSampleRequests();
+                this.updateParserInfo();
+                this.updateRawRequest(); // Initialize raw request from textarea content
+                this.parseAndRender(); // Initial render
+            }
+
+            initializeEventListeners() {
+                // Parser comparison buttons
+                document.querySelectorAll('.btn[data-parser]').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        document.querySelector('.btn.active').classList.remove('active');
+                        e.target.classList.add('active');
+                        this.currentComparison = e.target.dataset.parser;
+                        this.updateParserInfo();
+                        this.parseAndRender();
+                    });
+                });
+
+                // Terminator selection
+                this.terminatorSelect.addEventListener('change', (e) => {
+                    this.selectedTerminator = e.target.value;
+                    this.parseAndRender();
+                });
+
+                // Input textarea
+                this.input.addEventListener('input', () => {
+                    this.updateRawRequest();
+                    this.parseAndRender();
+                });
+
+                // Sample request buttons
+                document.querySelectorAll('.btn[data-sample]').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        this.loadSampleRequest(e.target.dataset.sample);
+                    });
+                });
+            }
+
+            setupSampleRequests() {
+                this.samples = {
+                    'cl_te': `POST /about HTTP/1.1\\r\\n\nHost: example.com\\r\\n\nTransfer-Encoding: chunked\\r\\n\nContent-Length: 4\\r\\n\n\\r\\n\n1\\r\\n\nZ\nQ`,
+                    'te_cl': `POST /search HTTP/1.1\\r\\n\nHost: example.com\\r\\n\nContent-Type: application/x-www-form-urlencoded\\r\\n\nContent-Length: 4\\r\\n\nTransfer-Encoding: zchunked\\r\\n\n\\r\\n\n96\\r\\n\nGET /404 HTTP/1.1\\r\\n\nX: x=1&q=smugging&x=\\r\\n\nHost: example.com\\r\\n\nContent-Type: application/x-www-form-urlencoded\\r\\n\nContent-Length: 100\\r\\n\n\\r\\n\nx=\\r\\n\n0\\r\\n\n\\r\\n\nPOST /search HTTP/1.1\\r\\n\nHost: example.com`,
+                    'ext_term': `GET / HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nTransfer-Encoding: chunked\\r\\n\n\\r\\n\n5f;\\n\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\r\\n\n0\\r\\n\n\\r\\n\nGET / HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nX-Forwarded-Host: attacker-site.io\\r\\n\nContent-Length: 100\\r\\n\n\\r\\n\n0\\r\\n\n\\r\\n`,
+                    'term_ext': `GET /one HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nTransfer-Encoding: chunked\\r\\n\n\\r\\n\n2;\\n\nxx\\r\\n\n45\\r\\n\n0\\r\\n\n\\r\\n\nGET /two HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nTransfer-Encoding: chunked\\r\\n\n\\r\\n\n0\\r\\n\n\\r\\n`,
+                    'term_spill': 'GET /one HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nTransfer-Encoding: chunked\\r\\n\n\\r\\n\n5\\r\\n\nAAAAAXX45\\r\\n\n0\\r\\n\n\\r\\n\nGET /two HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nTransfer-Encoding: chunked\\r\\n\n\\r\\n\n0\\r\\n\n\\r\\n',
+                    'spill_term': 'GET /one HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nTransfer-Encoding: chunked\\r\\n\n\\r\\n\n5\\r\\n\nAAAAA\\rX\n2\\r\\n\n45\\r\\n\n0\\r\\n\n\\r\\n\nGET /two HTTP/1.1\\r\\n\nHost: localhost\\r\\n\nTransfer-Encoding: chunked\\r\\n\n\\r\\n\n0\\r\\n\n\\r\\n'
+                };
+            }
+
+            loadSampleRequest(sampleName) {
+                if (this.samples[sampleName]) {
+                    this.input.value = this.samples[sampleName];
+                    this.updateRawRequest();
+                    
+                    // Map sample names to parser comparisons
+                    const sampleToParser = {
+                        'cl_te': 'CL.TE',
+                        'te_cl': 'TE.CL',
+                        'ext_term': 'EXT.TERM',
+                        'term_ext': 'TERM.EXT',
+                        'term_spill': 'TERM.SPILL',
+                        'spill_term': 'SPILL.TERM'
+                    };
+                    
+                    // Update parser comparison if mapping exists
+                    if (sampleToParser[sampleName]) {
+                        // Remove active class from current button
+                        document.querySelector('.btn[data-parser].active').classList.remove('active');
+                        // Add active class to new button
+                        document.querySelector(`.btn[data-parser="${sampleToParser[sampleName]}"]`).classList.add('active');
+                        // Update the comparison
+                        this.currentComparison = sampleToParser[sampleName];
+                        this.updateParserInfo();
+                    }
+                    
+                    this.parseAndRender();
+                }
+            }
+
+            updateRawRequest() {
+                // Store the raw unescaped request for parsing
+                this.rawRequest = this.convertEscapedChars(this.input.value);
+            }
+
+            updateParserInfo() {
+
+                const detailedDescriptions = {
+                    'CL.TE': 'The front-end interprets the request following the Content-Length header, while the back-end reads is as a chunked request.',
+                    'TE.CL': 'The front-end processes chunked encoding, while the back-end falls back to Content-Length.',
+                    'EXT.TERM': 'The front-end parses bytes following <span class="hidden-char">;</span> in the chunk header as its extension, while the back-end server considers specific byte sequences in the extension as a chunk header terminator. Choose your terminator character from the left-hand menu.',
+                    'TERM.EXT': 'The front-end considers specific byte sequences in the chunk header extension as a chunk header terminator, while the backend is parses everything as the chunk extension until it sees a <span class="hidden-char">\\r\\n</span>. Choose your terminator character from the left-hand menu.',
+                    'TERM.SPILL': 'The front-end interprets a specific sequence as a line terminator.  The back-end server ignores spills in chunk bodies (greyed out). This tool assumes any two-byte sequence following the proclaimed chunk size is interpreted as a line terminator on the front-end.',
+                    'SPILL.TERM': 'The front-end proxy ignores spills in chunk bodies (greyed out), and the backend server interprets a specific sequence as a line terminator. This tool assumes any two-byte sequence following the proclaimed chunk size is ignored on the front-end but interpreted as a line terminator on the back-end.'
+                };
+
+                const parserNames = {
+                    'CL': 'Content-Length Parser',
+                    'TE': 'Transfer-Encoding Parser', 
+                    'EXT': 'Extension Parser',
+                    'TERM': `Terminator Parser (${this.selectedTerminator === '\r' ? '\\r' : '\\n'})`,
+                    'SPILL': 'Spill-over Parser'
+                };
+
+                const [leftParser, rightParser] = this.currentComparison.split('.');
+
+                this.outputTitleEl.textContent = `(${this.currentComparison})`;
+                this.leftParserTitleEl.textContent = parserNames[leftParser];
+                this.rightParserTitleEl.textContent = parserNames[rightParser];
+                
+                // Update detailed description
+                const detailedDescEl = document.getElementById('detailed-description');
+                if (detailedDescEl) {
+                    detailedDescEl.innerHTML = detailedDescriptions[this.currentComparison];
+                }
+            }
+
+            parseAndRender() {
+                if (!this.rawRequest.trim()) {
+                    const emptyMessage = `<div class="text-muted text-center" style="margin-top: 100px;">
+                        Enter an HTTP request above to see parser comparison...
+                    </div>`;
+                    this.leftOutput.innerHTML = emptyMessage;
+                    this.rightOutput.innerHTML = emptyMessage;
+                    return;
+                }
+
+                const [leftParser, rightParser] = this.currentComparison.split('.');
+                
+                // Parse with both parsers
+                const leftParsed = this.parseWithParser(leftParser, this.rawRequest);
+                const rightParsed = this.parseWithParser(rightParser, this.rawRequest);
+
+                this.leftOutput.innerHTML = leftParsed;
+                this.rightOutput.innerHTML = rightParsed;
+            }
+
+            parseWithParser(parserType, input) {
+                switch (parserType) {
+                    case 'CL':
+                        return this.parseContentLength(input);
+                    case 'TE':
+                        return this.parseChunked(input, '\r\n');
+                    case 'EXT':
+                        return this.parseChunked(input, '\r\n');
+                    case 'SPILL':
+                        return this.parseChunked(input, '\r\n', true);
+                    case 'TERM':
+                        return this.parseChunked(input, this.selectedTerminator);
+                    default:
+                        return this.parseTransferEncoding(input);
+                }
+            }
+
+            escapeCharacters(text) {
+                return text
+                    .replace(/\r/g, '\\r')
+                    .replace(/\n/g, '\\n')
+                    .replace(/\t/g, '\\t')
+                    .replace(/\0/g, '\\0')
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // This function should ONLY be called on plain text, never on HTML
+            visualizeHiddenChars(text) {
+                return text
+                    .replace(/\r/g, '<span class="hidden-char">\\r</span>')
+                    .replace(/\n/g, '<span class="hidden-char">\\n</span>')
+                    .replace(/\t/g, '<span class="hidden-char">\\t</span>')
+                    .replace(/\0/g, '<span class="hidden-char">\\0</span>');
+            }
+
+            // Combined function that escapes HTML first, then visualizes hidden chars
+            escapeAndVisualize(text) {
+                return this.visualizeHiddenChars(this.escapeHtml(text));
+            }
+
+            // Convert escaped characters to actual bytes for parsing only
+            convertEscapedChars(text) {
+                return text
+                    // First remove actual newlines since we want to ignore them
+                    .replace(/\r\n/g, '')
+                    .replace(/\r/g, '')
+                    .replace(/\n/g, '')
+                    // Then convert escaped characters to actual bytes
+                    .replace(/\\n/g, '\n')       // Unix line ending  
+                    .replace(/\\r/g, '\r')       // Mac line ending
+                    .replace(/\\t/g, '\t')       // Tab character
+                    .replace(/\\0/g, '\0')       // Null character
+                    .replace(/\\x([0-9a-fA-F]{2})/g, (match, hex) => {
+                        return String.fromCharCode(parseInt(hex, 16));
+                    })  // Hex escaped bytes like \x0d
+                    .replace(/\\([0-7]{1,3})/g, (match, octal) => {
+                        return String.fromCharCode(parseInt(octal, 8));
+                    })  // Octal escaped bytes like \015
+                    .replace(/\\u([0-9a-fA-F]{4})/g, (match, unicode) => {
+                        return String.fromCharCode(parseInt(unicode, 16));
+                    })  // Unicode escapes like \u000d
+                    .replace(/\\\\/g, '\\');     // Escaped backslash
+            }
+
+            printFirstChars(text, maxLength = 100) {
+                if (text.length <= maxLength) {
+                    return text;
+                }
+                return text.slice(0, maxLength) + '...';
+            }
+
+            parseHTTPRequest(rawInput, additionalTerminator = null) {
+                // rawInput is already unescaped, use it directly
+                const processedInput = rawInput;
+                let lines = [];
+                // Split on actual line breaks, preserving the original characters
+                if (additionalTerminator != null) {
+                    lines = processedInput.split(new RegExp(`(\r\n|${additionalTerminator})`));
+                }
+                else {
+                    lines = processedInput.split(/(\r\n)/);
+                }
+                let headerEndIndex = -1;
+                let actualLines = [];
+                let separators = [];
+                
+                // Rebuild lines and track separators
+                for (let i = 0; i < lines.length; i += 2) {
+                    actualLines.push(lines[i] || '');
+                    separators.push(lines[i + 1] || '');
+                }
+                
+                // Find end of headers (empty line)
+                for (let i = 0; i < actualLines.length; i++) {
+                    if (actualLines[i].trim() === '') {
+                        headerEndIndex = i;
+                        break;
+                    }
+                }
+
+                const headerLines = headerEndIndex >= 0 ? actualLines.slice(0, headerEndIndex) : actualLines;
+                const bodyLines = headerEndIndex >= 0 ? actualLines.slice(headerEndIndex + 1) : [];
+                
+                const headers = {};
+                headerLines.forEach(line => {
+                    const match = line.match(/^([^:]+):\s*(.*)$/);
+                    if (match) {
+                        headers[match[1].toLowerCase()] = match[2].trim();
+                    }
+                });
+
+                // Reconstruct body with original line endings
+                let bodyText = '';
+                if (headerEndIndex >= 0 && bodyLines.length > 0) {
+                    for (let i = 0; i < bodyLines.length; i++) {
+                        bodyText += bodyLines[i];
+                        if (i < bodyLines.length - 1) {
+                            const sepIndex = headerEndIndex + 1 + i;
+                            bodyText += separators[sepIndex] || 'xxx';
+                        }
+                    }
+                }
+
+                return {
+                    requestLine: headerLines[0] || '',
+                    headers: headers,
+                    headerLines: headerLines,
+                    headerSeparators: separators.slice(0, headerEndIndex),
+                    bodySeparators: separators.slice(headerEndIndex + 1),
+                    bodyLines: bodyLines,
+                    body: bodyText,
+                    headerEndIndex: headerEndIndex,
+                    headerEndSeparator: headerEndIndex >= 0 ? separators[headerEndIndex] : ''
+                };
+            }
+
+            parseTransferEncoding(input) {
+                const request = this.parseHTTPRequest(input);
+                let result = '';
+
+                // Request line and headers with annotations
+                result += '<div class="header-section">';
+                
+                // First line is the request line
+                if (request.headerLines.length > 0) {
+                    result += '<span class="request-line">' + this.escapeAndVisualize(request.headerLines[0]) + '</span>';
+                    result += '<span class="annotation">request line</span>';
+                    if (0 < request.headerSeparators.length) {
+                        result += this.visualizeHiddenChars(request.headerSeparators[0]);
+                    }
+                    result += '\n';
+                }
+
+                // Headers
+                for (let i = 1; i < request.headerLines.length; i++) {
+                    result += this.escapeAndVisualize(request.headerLines[i]);
+                    if (i < request.headerSeparators.length) {
+                        result += this.visualizeHiddenChars(request.headerSeparators[i]);
+                    }
+                    result += '\n';
+                }
+                
+                if (request.headerEndIndex >= 0) {
+                    result += this.visualizeHiddenChars(request.headerEndSeparator);
+                    result += '<span class="annotation">end of headers</span>\n';
+                }
+                result += '</div>';
+
+                // Check if Transfer-Encoding: chunked
+                if (request.headers['transfer-encoding'] && 
+                    request.headers['transfer-encoding'].toLowerCase().includes('chunked')) {
+                    
+                    result += this.parseChunkedBody(request.body);
+                } else {
+                    result += '<div class="body-section">';
+                    result += this.escapeAndVisualize(request.body);
+                    result += '<span class="annotation">body</span>';
+                    result += '</div>';
+                }
+
+                return result;
+            }
+
+            parseChunkedBody(body) {
+                let result = '';
+                // Use the same splitting logic as other functions
+                const lines = body.split(/(\r\n|\r|\n)/);
+                let actualLines = [];
+                let separators = [];
+                
+                // Rebuild lines and track separators
+                for (let i = 0; i < lines.length; i += 2) {
+                    actualLines.push(lines[i] || '');
+                    separators.push(lines[i + 1] || '');
+                }
+                
+                let i = 0;
+
+                while (i < actualLines.length) {
+                    const line = actualLines[i];
+                    
+                    // Skip empty lines at the start
+                    if (line.trim() === '' && i === 0) {
+                        result += this.visualizeHiddenChars(separators[i]) + '\n';
+                        i++;
+                        continue;
+                    }
+
+                    // Try to parse chunk size
+                    const chunkSizeMatch = line.match(/^([0-9a-fA-F]+)(.*)$/);
+                    if (chunkSizeMatch) {
+                        const chunkSize = parseInt(chunkSizeMatch[1], 16);
+                        const chunkExtension = chunkSizeMatch[2];
+                        
+                        // Start complete chunk wrapper for all chunks (including size 0)
+                        result += '<div class="chunk-complete">';
+                        
+                        // Chunk header (size + extension)
+                        result += this.escapeHtml(chunkSizeMatch[1]);
+                        if (chunkSize === 0) {
+                            result += '<span class="annotation">terminator chunk</span>';
+                        } else {
+                            result += '<span class="annotation">chunk size (' + chunkSize + ' bytes)</span>';
+                        }
+                        
+                        if (chunkExtension) {
+                            result += '<span class="chunk-extension">' + 
+                                    this.escapeAndVisualize(chunkExtension) + '</span>';
+                        }
+                        result += this.visualizeHiddenChars(separators[i]) + '\n';
+                        
+                        i++;
+                        
+                        // Read chunk data
+                        let bytesRead = 0;
+                        let chunkDataLines = [];
+                        let chunkDataSeparators = [];
+                        while (i < actualLines.length && bytesRead < chunkSize) {
+                            const dataLine = actualLines[i];
+                            const separator = separators[i] || '';
+                            const lineBytes = dataLine.length + separator.length;
+                            
+                            if (bytesRead + lineBytes <= chunkSize) {
+                                chunkDataLines.push(dataLine);
+                                chunkDataSeparators.push(separator);
+                                bytesRead += lineBytes;
+                            } else {
+                                // Partial line
+                                const remainingBytes = chunkSize - bytesRead;
+                                if (remainingBytes > 0) {
+                                    const partialData = dataLine.substring(0, remainingBytes);
+                                    chunkDataLines.push(partialData);
+                                    chunkDataSeparators.push('');
+                                    result += '<span class="malformed">' + 
+                                            this.escapeAndVisualize(dataLine.substring(remainingBytes)) + 
+                                            this.visualizeHiddenChars(separator) + '</span>\n';
+                                }
+                                bytesRead = chunkSize;
+                            }
+                            i++;
+                        }
+                        
+                        // Display chunk data within the same wrapper
+                        if (chunkDataLines.length > 0) {
+                            let totalDataBytes = 0;
+                            chunkDataLines.forEach((dataLine, idx) => {
+                                result += this.escapeAndVisualize(dataLine);
+                                if (idx === 0) result += '<span class="annotation">chunk data</span>';
+                                if (chunkDataSeparators[idx]) {
+                                    result += this.visualizeHiddenChars(chunkDataSeparators[idx]);
+                                }
+                                if (idx < chunkDataLines.length - 1) result += '\n';
+                                totalDataBytes += dataLine.length;
+                            });
+                            
+                            // Add total chunk data length annotation
+                            if (chunkSize > 0 && totalDataBytes > 0) {
+                                result += '<span class="annotation">total size: ' + totalDataBytes + ' bytes</span>\n';
+                            }
+                        }
+                        
+                        // End complete chunk wrapper
+                        result += '</div>\n';
+                    } else {
+                        // Malformed chunk size
+                        result += '<span class="malformed">' + 
+                                this.escapeAndVisualize(line) + 
+                                '<span class="annotation">malformed chunk size</span>';
+                        if (i < separators.length && separators[i]) {
+                            result += this.visualizeHiddenChars(separators[i]);
+                        }
+                        result += '</span>\n';
+                        i++;
+                    }
+                }
+
+                return result;
+            }
+
+            parseContentLength(input) {
+                const request = this.parseHTTPRequest(input);
+                let result = '';
+
+                // Request line and headers with annotations
+                result += '<div class="header-section">';
+                for (let i = 0; i < request.headerLines.length; i++) {
+                    if (i === 0) {
+                        result += '<span class="request-line">' + this.escapeAndVisualize(request.headerLines[i]) + '</span>';
+                        result += '<span class="annotation">request line</span>';
+                    } else {
+                        // Check if this is the Content-Length header
+                        if (request.headerLines[i].match(/Content-Length\s*/i)) {
+                            result += '<span class="highlight-header">' + this.escapeAndVisualize(request.headerLines[i]) + '</span>';
+                        } else {
+                            result += this.escapeAndVisualize(request.headerLines[i]);
+                        }
+                    }
+                    if (i < request.headerSeparators.length) {
+                        result += this.visualizeHiddenChars(request.headerSeparators[i]);
+                    }
+                    result += '\n';
+                }
+                if (request.headerEndIndex >= 0) {
+                    result += this.visualizeHiddenChars(request.headerEndSeparator) + '\n';
+                }
+                result += '</div>';
+
+                // Check for Content-Length
+                const contentLength = request.headers['content-length'];
+                if (contentLength) {
+                    const length = parseInt(contentLength, 10);
+                    const body = request.body;
+                    
+                    if (body.length >= length) {
+                        // Show exact content-length bytes
+                        const contentLengthData = body.substring(0, length);
+                        const excess = body.substring(length);
+                        
+                        result += '<div class="request-body body-section">';
+                        result += this.escapeAndVisualize(contentLengthData);
+                        result += '<span class="annotation">request body (' + length + ' bytes)</span>';
+                        result += '</div>';
+                        
+                        if (excess) {
+                            // if excess starts with GET, POST, or similar,
+                            // it might indicate a second request
+                            if (excess.match(/^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH)/)) {
+                                result += this.parseContentLength(excess);
+                            } else {
+                                result += '<div class="ignored-section text-truncate">';
+                                result += '<span class="excess-data">' +
+                                        this.escapeAndVisualize(excess) + '</span>';
+                                result += '<span class="annotation">ignored (beyond content-length)</span>';
+                                result += '</div>';
+                            }
+                            
+                        }
+                    } else {
+                        // Content-Length exceeds available data
+                        result += '<div class="request-body body-section">';
+                        result += this.escapeAndVisualize(body);
+                        result += '</div>';
+                        result += '<div class="malformed">Missing ' + (length - body.length) + ' bytes<span class="annotation">insufficient data</span></div>';
+                    }
+                } else {
+                    result += '<span class="annotation">No Content-Length header found</span>';
+                    result += '<div class="request-body">';
+                    result += this.escapeAndVisualize(request.body);
+                    result += '</div>';
+                }
+
+                return result;
+            }
+
+            parseSpillOver(input) {
+                const request = this.parseHTTPRequest(input);
+                let result = '';
+
+                // Request line and headers with annotations
+                result += '<div class="header-section">';
+                for (let i = 0; i < request.headerLines.length; i++) {
+                    if (i === 0) {
+                        result += '<span class="request-line">' + this.escapeAndVisualize(request.headerLines[i]) + '</span>';
+                        result += '<span class="annotation">request line</span>';
+                    } else {
+                        result += this.escapeAndVisualize(request.headerLines[i]);
+                    }
+                    if (i < request.headerSeparators.length) {
+                        result += this.visualizeHiddenChars(request.headerSeparators[i]);
+                    }
+                    result += '\n';
+                }
+                if (request.headerEndIndex >= 0) {
+                    result += this.visualizeHiddenChars(request.headerEndSeparator) + '\n';
+                }
+                result += '</div>';
+
+                // Show how data might spill over between requests
+                const lines = request.body.split(/(\r\n|\r|\n)/);
+                let foundSecondRequest = false;
+                let actualLines = [];
+                let separators = [];
+
+                // Rebuild lines and track separators
+                for (let i = 0; i < lines.length; i += 2) {
+                    actualLines.push(lines[i] || '');
+                    separators.push(lines[i + 1] || '');
+                }
+
+                for (let i = 0; i < actualLines.length; i++) {
+                    const line = actualLines[i];
+                    
+                    // Look for what might be a second HTTP request
+                    if (line.match(/^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH)/)) {
+                        if (!foundSecondRequest) {
+                            result += '<div class="spill-over-section">';
+                            result += '<span class="annotation">potential request smuggling</span>\n';
+                            foundSecondRequest = true;
+                        }
+                        result += '<span class="smuggled-request-line">' + 
+                                this.escapeAndVisualize(line) + '</span>';
+                        result += '<span class="annotation">smuggled request line</span>';
+                    } else if (foundSecondRequest) {
+                        if (line.trim() === '') {
+                            result += this.visualizeHiddenChars(separators[i]);
+                            result += '<span class="annotation">end of smuggled request</span>';
+                            result += '\n</div>';
+                            foundSecondRequest = false;
+                        }
+                    } else {
+                        result += '<span class="request-body">' + 
+                                this.escapeAndVisualize(line) + '</span>';
+                        if (i === 0 && actualLines.length > 1) {
+                            result += '<span class="annotation">original request body</span>';
+                        }
+                    }
+                    
+                    if (i < separators.length && separators[i] && !foundSecondRequest) {
+                        result += this.visualizeHiddenChars(separators[i]);
+                    }
+                    result += '\n';
+                }
+
+                if (foundSecondRequest) {
+                    result += '</div>';
+                }
+
+                return result;
+            }
+
+            parseChunked(input, terminator, ignoreSpillOver = false) {
+                const request = this.parseHTTPRequest(input, terminator);
+                let result = '';
+
+                // Request line and headers with annotations
+                result += '<div class="header-section">';
+                for (let i = 0; i < request.headerLines.length; i++) {
+                    if (i === 0) {
+                        result += '<span class="request-line">' + this.escapeAndVisualize(request.headerLines[i]) + '</span>';
+                        result += '<span class="annotation">request line</span>';
+                    } else {
+                        if (request.headerLines[i].match(/Transfer-Encoding/i)) {
+                            result += '<span class="highlight-header">' + this.visualizeHiddenChars(request.headerLines[i]) + '</span>';
+                        } else {
+                            result += this.escapeAndVisualize(request.headerLines[i]);
+                        }
+                    }
+                    if (i < request.headerSeparators.length) {
+                        // highlight Transfer-Encoding header
+                        result += this.visualizeHiddenChars(request.headerSeparators[i]);
+                        
+                    }
+                    result += '\n';
+                }
+                if (request.headerEndIndex >= 0) {
+                    result += this.visualizeHiddenChars(request.headerEndSeparator, request.headerSeparators[request.headerEndIndex]) + '\n';
+                }
+                result += '</div>';
+
+                // Focus on chunk extensions if Transfer-Encoding: chunked
+                
+
+                // just use the same logic as parseExtension
+                const lines = request.bodyLines;
+                let i = 0;
+
+                while (i < lines.length) {
+                    const line = lines[i];
+                    // Parse chunk size with extensions, using the selected terminator
+                    const chunkMatch = line.match(/^([0-9a-fA-F]+)(;.*)?$/s);
+                    if (chunkMatch) {
+                        const chunkSize = parseInt(chunkMatch[1], 16);
+                        const extension = chunkMatch[2];
+
+                        result += '<div class="chunk-complete">';
+                        result += this.escapeHtml(chunkMatch[1]);
+                        if (extension) {
+                            result += '<span class="chunk-extension">' + this.escapeAndVisualize(this.printFirstChars(extension, 20)) + '</span>';
+                        }
+                        if (chunkSize === 0) {
+                            result += '<span class="annotation">final chunk</span>';
+                        } else {
+                            result += '<span class="annotation">header (' + chunkSize + ' bytes)</span>';
+                        }
+                        result += `<span class="hidden-char">${this.escapeAndVisualize(request.bodySeparators[i])}</span>\n`;
+
+                        i++;
+
+                        if (chunkSize === 0) {
+                            // For terminator chunk, expect one more line ending to complete the 0\r\n\r\n pattern
+                            if (i < lines.length && lines[i].trim() === '') {
+                                result += `<span class="hidden-char block-separator">${this.escapeCharacters(request.bodySeparators[i])}</span>`;
+                                i++;
+                            }
+
+                            // visualize potential second request
+                            if(lines[i].match(/^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH)\s+/)) {
+                                result += '</div>';
+                                let remaining = '';
+                                for (let j = i; j < lines.length; j++) {
+                                    remaining += lines[j];
+                                    remaining += request.bodySeparators[j] || '';
+                                }
+                                remaining = this.parseChunked(remaining, terminator);
+                                result += remaining;
+                            } else {
+                                while (i < lines.length) {
+                                    result += '<span class="ignored-section">' +
+                                        // recursively run the rest of
+                                        this.escapeAndVisualize(lines[i]+request.bodySeparators[i])
+                                        +'</span>\n';
+                                    i++;
+                                }
+                            }
+                            
+                            break;
+                        }
+
+                        let bytesRead = 0;
+                        let actualDataBytes = 0; // Track actual data bytes (excluding line separators)
+                            while (i < lines.length && bytesRead < chunkSize) {
+                            const dataLine = lines[i];
+                                
+                            if (bytesRead + dataLine.length < chunkSize) {
+                                result += this.escapeAndVisualize(dataLine);
+                                actualDataBytes += dataLine.length + request.bodySeparators[i].length;
+                                result += '<span class="hidden-char">' + this.escapeCharacters(request.bodySeparators[i]) + '</span>\n';
+                                bytesRead += dataLine.length + request.bodySeparators[i].length;
+                                if(bytesRead == chunkSize) {
+                                    // handle the end of the block
+                                    result += '<span class="hidden-char block-separator">' + this.escapeCharacters(request.bodySeparators[i]) + '</span>';
+                                    i++;
+                                }
+                            } else if (bytesRead + dataLine.length == chunkSize) {
+                                // we're reading the very last bytes of this chunk
+                                // and the line separator is also the chunk terminator, so not part of the data
+                                result += this.escapeAndVisualize(dataLine);
+                                result += '<span class="hidden-char block-separator">' + this.escapeCharacters(request.bodySeparators[i]) + '</span>';
+                                actualDataBytes += dataLine.length;
+                                bytesRead += dataLine.length;
+                            } else {
+                                // we're in a world where there's more data than the chunk size indicates
+                                // treat this as a malformed chunk
+                                const validLen = chunkSize - bytesRead;
+                                if (validLen > 0) {
+                                    result += this.escapeAndVisualize(dataLine.substring(0, validLen));
+                                    actualDataBytes += dataLine.length + request.bodySeparators[i].length;
+                                }
+                                if(ignoreSpillOver) {
+                                    // if this is a spill-over, we can just ignore the rest of the line
+                                    // so we should treat this the same as if we're reading the very last bytes of this chunk
+                                    result += '<span class="ignored-section">' + this.escapeAndVisualize(dataLine.substring(validLen, dataLine.length)) + '</span>';
+                                    result += '<span class="hidden-char block-separator">' + this.escapeCharacters(request.bodySeparators[i]) + '</span>';
+                                    // actualDataBytes += dataLine.length;
+                                    bytesRead += dataLine.length;
+                                } else if((this.currentComparison === 'TERM.SPILL' || this.currentComparison === 'SPILL.TERM')) {
+                                    // are we accepting any two byte terminator?
+                                    bytesRead += 2;
+                                    result += '<span class="hidden-char block-separator">' +
+                                        this.escapeAndVisualize(dataLine.substring(validLen, validLen + 2)) +
+                                        '</span></span>';
+                                    // reset this line to the remainder and decrement i
+                                    lines[i] = dataLine.substring(validLen+2, dataLine.length);
+                                    actualDataBytes = validLen;
+                                    break;
+                                } else {
+                                    // otherwise, we treat this as an overrun and highlight the rest of the line
+                                    result += '<span class="malformed">' +
+                                        this.escapeAndVisualize(dataLine.substring(validLen)) +
+                                        '<span class="annotation">overrun chunk data</span>' +
+                                        `<span class="hidden-char">`+this.escapeCharacters(request.bodySeparators[i])+`</span></span>\n`;
+                                }
+                                // Overrun part
+                                // result += '<span class="ignored-section">' +
+                                //     this.escapeAndVisualize(dataLine.substring(validLen));
+                                // result += '<span class="hidden-char">' + this.escapeCharacters(request.bodySeparators[i]) + '</span>';
+                                // bytesRead += dataLine.length + 2;
+                            }
+                            
+                            i++;
+                        }
+
+                        // Add total chunk data length annotation if we had any data
+                        if (actualDataBytes > 0) {
+                            result += '<span class="annotation">total size: ' + actualDataBytes + ' bytes</span>\n';
+                        }
+
+                        result += '</div>';
+                    } else {
+                        result += '<span class="malformed">' +
+                            this.escapeAndVisualize(line) +
+                            '<span class="annotation">malformed chunk header</span>' +
+                            `<span class="hidden-char">`+this.escapeCharacters(request.bodySeparators[i])+`</span></span>\n`;
+                        i++;
+                    }
+                }
+
+                return result;
+            }
+
+        }
+
+        // Initialize the visualizer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Try to load config from location.hash (b64-encoded JSON)
+            let config = {};
+            if (window.location.hash && window.location.hash.length > 1) {
+            try {
+                const b64 = window.location.hash.substring(1);
+                const json = atob(b64);
+                config = JSON.parse(json);
+            } catch (e) {
+                // Ignore invalid hash
+            }
+            }
+            const visualizer = new HTTPParserVisualizer();
+
+            // Apply config if present
+            if (config.comparison) {
+            const btn = document.querySelector(`.btn[data-parser="${config.comparison}"]`);
+            if (btn) btn.click();
+            }
+            if (config.terminator) {
+            const sel = document.getElementById('terminator-select');
+            if (sel) sel.value = config.terminator;
+            visualizer.selectedTerminator = config.terminator;
+            }
+            if (config.input) {
+            visualizer.input.value = config.input;
+            visualizer.updateRawRequest();
+            }
+            visualizer.parseAndRender();
+
+            // --- Reflect user input changes in location.hash ---
+            function updateHash() {
+            const currentConfig = {
+                comparison: visualizer.currentComparison,
+                terminator: visualizer.selectedTerminator,
+                input: visualizer.input.value
+            };
+            try {
+                const json = JSON.stringify(currentConfig);
+                const b64 = btoa(json);
+                window.location.hash = b64;
+            } catch (e) {
+                // Ignore encoding errors
+            }
+            }
+
+            // Listen for relevant changes
+            visualizer.input.addEventListener('input', updateHash);
+            document.querySelectorAll('.btn[data-parser]').forEach(btn => {
+            btn.addEventListener('click', updateHash);
+            });
+            visualizer.terminatorSelect.addEventListener('change', updateHash);
+        });
+
+    </script>
+</body>
+</html>
