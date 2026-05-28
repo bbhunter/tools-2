@@ -26,7 +26,8 @@ function parseConfig() {
  try {
   config = JSON.parse(decoded);
 console.log(config);  
-  if(config.url.indexOf('http') !== 0) { config.url = ""; }
+  // only allow http and data urls?
+  if(config.url.indexOf('http') !== 0 && config.url.indexOf('data:') !== 0) { config.url = ""; }
 
   document.forms.settings.iframe.checked = config.iframe ? "checked" : "";
   document.forms.settings.url.value = config.url;
